@@ -2,6 +2,7 @@ import discord
 import os
 import requests
 from dotenv import load_dotenv
+from lxml import html
 import pickle
 import json
 coingecko_base_url = 'https://api.coingecko.com/api/v3'
@@ -9,7 +10,7 @@ client = discord.Client()
 load_dotenv()
 
 E1 = "Sorry, the token ID you entered is incorrect, you can get it by reading the coingecko URL of you'r desired coin. To do so, visit coingecko.com and select you'r desired coin. Example: https://www.coingecko.com/de/munze/bitcoin ( token ID: 'bitcoin' )"
-
+cs_balance_xpath = '//*[@id="__next"]/main/div/div/div[1]/div[3]/span/text()'
 def cut(string):
     res = ''
     loc = 1000000
@@ -52,8 +53,7 @@ def gecko_ids():
 
 def reset(user_id):
     data = {}
-    with open('database.dat', 'rb') as database:
-        data_backup = pickle.load(database)
+    data_backup = get_data()
     data['id'] = user_id
     data['balance'] = {}
     data['prints'] = 0
@@ -66,6 +66,14 @@ def reset(user_id):
     with open('database.dat', 'wb') as database:
         pickle.dump(data_backup, database)
         database.close()
+
+def set_key(user_id, key, value):
+    data = get_data()
+    for d in range(0, len(data)):
+        if data[d]['id'] == user_id:
+            data[d][key] = value
+    with open('database.dat', 'wb') as database:
+        pickle.dump(data, database)
 
 def sign_up(user_id):
     data = get_data() #Genesis comment out
@@ -104,6 +112,8 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+    print(str(message.author.id))
+    admin_id = '686188505038061588'
     print(message.channel.id)
     channel_ids = ['830115500058214461']
     if str(message.channel.id) not in channel_ids:
@@ -120,7 +130,7 @@ async def on_message(message):
         await message.channel.send('Please use $register first.')
 
     elif message.content.startswith('$help'):
-        await message.channel.send('1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $price TOKEN | get price of a TOKEN.' + '\n' + '3. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '4. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '5. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '6. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether).' + '\n' + '7. $reset | resets all balances and stats to 0, allowing for a fresh start.')
+        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $price TOKEN | get price of a TOKEN.' + '\n' + '3. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '4. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '5. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '6. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether).' + '\n' + '7. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.')
 
     elif message.content.startswith('$hodling'):
         total_balance = 0.0
@@ -228,7 +238,44 @@ async def on_message(message):
                 database.close()
         except Exception as E:
             print(E)
+    elif message.content.startswith('$connect'):
+        coinstats_url = message.content.split()[1]
+        set_key(message.author.id, 'coinstats_url', coinstats_url)
+        data = get_data()
+        for d in range(0, len(data)):
+            if data[d]['id'] == message.author.id:
+                print(data[d]['coinstats_url'])
+                await message.channel.send('Your coinstats account was connected: ' + str(data[d]['coinstats_url']))
 
+    elif message.content.startswith('$update') and str(message.author.id) == admin_id:
+        try:
+            key = message.content.split()[1]
+            for d in range(0, len(data)):
+                if key in data[d]:
+                    await message.channel.send("Warning! Abort. It seems this key already exists, are you sure it hasn't been added yet?")
+                    return
+            default = message.content.split()[2]
+            for d in range(0, len(data)):
+                data[d][key] = default
+            with open('database.dat', 'wb') as database:
+                pickle.dump(data)
+            print('Added key: ' + str(key) + ' with default value: ' + str(default))
+        except Exception as E:
+            print(str(E))
+            await message.channel.send('Error! Update failed! Data might have been corrupted.')
+
+    elif message.content.startswith('$csbalance'):
+        coinstats_url = ''
+        for d in range(0, len(data)):
+            if data[d]['id'] == message.author.id:
+                coinstats_url = data[d]['coinstats_url']
+        if coinstats_url[0:4] == 'http':
+            page = requests.get(coinstats_url)
+            page_content = html.fromstring(page.content)
+        else:
+            await message.channel.send('Invalid coinstats url, did you $connect your account yet? If not, please do that first. Example: $connect https://coinstats... ')
+        csbalance = page_content.xpath(cs_balance_xpath)[0]
+        await message.channel.send('Your linked coinstats portfolio is worth: ' + str(csbalance))
     elif message.content.startswith('$reset'):
         reset(message.author.id)
         await message.channel.send("All of your balances were reset to 0. Enjoy a fresh start :)")
