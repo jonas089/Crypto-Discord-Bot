@@ -1,5 +1,6 @@
 import discord
 import os
+import time
 import requests
 from dotenv import load_dotenv
 from lxml import html
@@ -8,6 +9,8 @@ import json
 coingecko_base_url = 'https://api.coingecko.com/api/v3'
 client = discord.Client()
 load_dotenv()
+
+flexible_plans={'bitcoin':1.2/100, 'tether':6/100, 'cardano':1.45/100, 'dogecoin':5/100, 'ethereum':0.88/100, 'chainlink':0.39/100, 'monero':1.83/100}
 
 E1 = "Sorry, the token ID you entered is incorrect, you can get it by reading the coingecko URL of your desired coin. To do so, visit coingecko.com and select your desired coin. Example: https://www.coingecko.com/de/munze/bitcoin ( token ID: 'bitcoin' )"
 cs_balance_xpath = '//*[@id="__next"]/main/div/div/div[1]/div[3]/span/text()'
@@ -130,11 +133,13 @@ async def on_message(message):
         await message.channel.send('Please use $register first.')
 
     elif message.content.startswith('$help'):
-        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $print AMOUNT | add a specific AMOUNT of USDT (tether) to your balance, you can print negative values, but can not have less than 0 USDT. The %age gains take your printing in consideration so print as much as you want, it wont affect your performance and stats :).' + '\n' + '3. $price TOKEN | get price of a TOKEN.' + '\n' + '4. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '5. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '6. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '7. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether). You can sell your entire hodling by simply using $sell TOKEN all' + '\n' + '8. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '9. $supported TOKEN | check weather a token is supported by the coingecko API V3 yet, if the TOKEN is unsupported, you sadly can not buy / sell it throught this bot.' + '\n' + '10. $market TOKEN | get advanced market data of a token, including 24hour change, all time high, alltime low and many more.' + '\n' + '[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.' + '\n' + '2. $upgrade | automatically search for new tokens on coingecko and add them to the bot.')
+        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $print AMOUNT | add a specific AMOUNT of USDT (tether) to your balance, you can print negative values, but can not have less than 0 USDT. The %age gains take your printing in consideration so print as much as you want, it wont affect your performance and stats :).' + '\n' + '3. $price TOKEN | get price of a TOKEN.' + '\n' + '4. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '5. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '6. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '7. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether). You can sell your entire hodling by simply using $sell TOKEN all' + '\n' + '8. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '9. $supported TOKEN | check weather a token is supported by the coingecko API V3 yet, if the TOKEN is unsupported, you sadly can not buy / sell it throught this bot.' + '\n' + '10. $market TOKEN | get advanced market data of a token, including 24hour change, all time high, alltime low and many more.' + '\n' + '[STAKING(FLEXIBLE)]' + '\n' + '1. $sterms | shows all flexible staking terms available.' + '\n' + '2. $slock TOKEN AMOUNT | deposit an AMOUNT of a TOKEN to the flexible staking term and start earning interest immediately. Interest is calculated every second. You can $sunlock whenever you want to.' + '\n' + '3. $sunlock TOKEN AMOUNT | withdraw an AMOUNT of a TOKEN from the flexible staking term. You can $sunlock TOKEN all, to unlock 100% of your allocation.' + '\n' + '4. $sterms | list all available flexible staking terms and their interest rates. If you lock a TOKEN into staking that has no plan, you earn 0% interest.' + '\n')
+
+        await message.channel.send('[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.' + '\n' + '2. $upgrade | automatically search for new tokens on coingecko and add them to the bot.')
 
     elif message.content.startswith('$hodling'):
         total_balance = 0.0
-        hodlstr = ''
+        hodlstr = '-' * 100 + '\n' + 'DEMO PORTFOLIO OF ' + str(message.author) + '\n' + '-' * 100 + '\n'
         try:
             data = get_data()
             for d in range(0, len(data)):
@@ -145,15 +150,16 @@ async def on_message(message):
                                 price = get_price(key)
                             except Exception as Unlisted:
                                 price = 0
-                            hodlstr += key + ': ' + str(data[d]['balance'][key]) + ' | (' + cut(str(data[d]['balance'][key] * price)) + '$)' + '\n'
+                            hodlstr += key + ': ' + str(data[d]['balance'][key]) + ' | (' + cut(str(data[d]['balance'][key] * price)) + '$)' + '\n' + ' ' + '\n'
                             total_balance += data[d]['balance'][key] * price
-            await message.channel.send(hodlstr)
             printed = get_printed(message.author.id)
             profit = total_balance - printed
 
             percentage_change = 100 * (total_balance - printed) / printed
-            await message.channel.send('overall: ' + cut(str(total_balance)) + '$')
-            await message.channel.send('You printed: ' + str(printed) + ' USDT' + '\n' + 'PNL: ' + cutx(str(profit), 3) + '$' + '\n' + 'Percentage gains: ' + cutx(str(percentage_change), 3) + '%')
+            hodlstr += 'TOTAL (USDT): ' + cut(str(total_balance)) + '$' + '\n'
+            hodlstr += 'You printed: ' + str(printed) + ' USDT' + '\n' + 'PNL: ' + cutx(str(profit), 3) + '$' + '\n' + 'Percentage gains: ' + cutx(str(percentage_change), 3) + '%'
+            hodlstr += '\n' + '-' * 100 + '\n'
+            await message.channel.send(hodlstr)
         except Exception as E:
             await message.channel.send('Unknown Error, this feature might be under maintanance. Or you just used $reset and your #Hodlings are 0.')
 
@@ -342,6 +348,155 @@ async def on_message(message):
             await message.channel.send(id + ' is supported.')
         else:
             await message.channel.send(id +  " is not supported yet. visit https://api.coingecko.com/api/v3/simple/price?ids=" + id + "&vs_currencies=usd" + '\n' + "if this request doesn't return '{}' in your browser, tell the admin to run $upgrade, because a value within the brackets would mean the coin got added to tha API and the database of the bot is outdated.")
+
+    elif message.content.startswith('$sregister') and str(message.author.id) == admin_id:
+            ids = gecko_ids()
+            data = []
+            data.append(len(data))
+            data[len(data) - 1] = {}
+            data[len(data) - 1]['id'] = message.author.id
+            data[len(data) - 1]['balance'] = {}
+            for i in range(0, len(ids)):
+                data[len(data) - 1]['balance'][ids[i]] = [0, 0]
+            with open('staking.dat', 'wb') as stakingbase:
+                pickle.dump(data, stakingbase)
+                stakingbase.close()
+
+    elif message.content.startswith('$sregister'):
+        ids = gecko_ids()
+        with open('staking.dat', 'rb') as stakingbase:
+            data = pickle.load(stakingbase)
+        set = {}
+        set['id'] = message.author.id
+        set['balance'] = {}
+        for i in range(0, len(ids)):
+            set['balance'][ids[i]] = [0, 0]
+        data.append(len(data))
+        data[len(data) - 1] = set
+        with open('staking.dat', 'wb') as stakingbase:
+            pickle.dump(data, stakingbase)
+            stakingbase.close()
+
+    elif message.content.startswith('$sbalance'):
+        try:
+            annual = 0
+            id = message.content.split()[1]
+            with open('staking.dat', 'rb') as stakingbase:
+                data = pickle.load(stakingbase)
+            for d in range(0, len(data)):
+                if data[d]['id'] == message.author.id:
+                    staking_balance = data[d]['balance'][id][0]
+                    if data[d]['balance'][id][1] != 0:
+                        if id in flexible_plans:
+                            annual = flexible_plans[id]
+                            psec = annual / 365 / 24 / 60 / 60
+                            staking_balance += staking_balance * psec * (int(time.time())-data[d]['balance'][id][1])
+                    else:
+                        try:
+                            if id in flexible_plans:
+                                annual = flexible_plans[id]
+                        except Exception as E:
+                            print(str(E))
+
+            await message.channel.send('You have ' + str(staking_balance) + ' ' + id + ' in a flexible interest plan generating ' + str(annual * 100) + '% p.a.')
+
+        except Exception as E:
+            print(str(E))
+            await message.channel.send('No entry found in database, please use $sregister first.')
+
+    elif message.content.startswith('$sterms'):
+        flexible = '[FLEXIBLE INTEREST PLANS]: ' + '\n'
+        for key in flexible_plans:
+            flexible += 'Token: ' + key + ' | Interest (p.a.): ' + str(flexible_plans[key]*100) + '%' + '\n'
+        await message.channel.send(flexible)
+
+    elif message.content.startswith('$slock'):
+        id = message.content.split()[1]
+        amount = message.content.split()[2]
+        if float(amount) < 0:
+            await message.channel.send("don't mess with me.")
+            return
+        data = get_data()
+        for d in range(0, len(data)):
+            if data[d]['id'] == message.author.id:
+                if data[d]['balance'][id] < float(amount):
+                    await message.channel.send("sorry, you can not afford this transaction. use $print x to add more Tether to your wallet and buy the desired token using $buy.")
+                    return
+                else:
+                    data[d]['balance'][id] = data[d]['balance'][id] - float(amount)
+        with open('database.dat', 'wb') as database:
+            pickle.dump(data, database)
+            database.close()
+
+        with open('staking.dat', 'rb') as stakingbase:
+            data = pickle.load(stakingbase)
+            for d in range(0, len(data)):
+                if data[d]['id'] == message.author.id:
+                    if data[d]['balance'][id][0] > 0:
+                        await message.channel.send('You already have tokens locked in this staking term. To re-charge this term, you need to withdraw first. You can use $sunlock TOKEN all.')
+                        recovery = get_data()
+                        for d in range(0, len(recovery)):
+                            if recovery[d]['id'] == message.author.id:
+                                recovery[d]['balance'][id] = recovery[d]['balance'][id] + float(amount)
+                        with open('database.dat', 'wb') as database:
+                            pickle.dump(recovery, database)
+                            database.close()
+                        return
+                    data[d]['balance'][id][0] = float(data[d]['balance'][id][0]) + float(amount)
+                    data[d]['balance'][id][1] = int(time.time())
+        with open('staking.dat', 'wb') as stakingbase:
+            pickle.dump(data, stakingbase)
+            stakingbase.close()
+        await message.channel.send('Successfully transferred ' + str(amount) + ' ' + id + ' to flexible staking term.')
+
+    elif message.content.startswith('$sunlock'):
+        try:
+            id = message.content.split()[1]
+            amount = message.content.split()[2]
+            try:
+                if float(amount) < 0:
+                    await message.channel.send("don't mess with me.")
+                    return
+            except Exception as E:
+                pass
+            with open('staking.dat', 'rb') as stakingbase:
+                data = pickle.load(stakingbase)
+                for d in range(0, len(data)):
+                    if data[d]['id'] == message.author.id:
+                        staking_balance = data[d]['balance'][id][0]
+                        if id in flexible_plans:
+                            annual = flexible_plans[id]
+                            psec = annual / 365 / 24 / 60 / 60
+                            staking_balance += staking_balance * psec * (int(time.time())-data[d]['balance'][id][1])
+                            try:
+                                if staking_balance < float(amount):
+                                    await message.channel.send("sorry, you can not afford this transaction. use $print x to add more Tether to your wallet and buy the desired token using $buy.")
+                                    return
+                            except Exception as E:
+                                pass
+                        if amount != 'all':
+                            new_staking_balance = staking_balance - float(amount)
+                            data[d]['balance'][id][0] = new_staking_balance
+                        else:
+                            amount = staking_balance
+                            new_staking_balance = 0
+                            data[d]['balance'][id][0] = new_staking_balance
+                            data[d]['balance'][id][1] = 0
+                        break
+                with open('staking.dat', 'wb') as stakingbase:
+                    pickle.dump(data, stakingbase)
+                data = get_data()
+                for d in range (0, len(data)):
+                    if data[d]['id'] == message.author.id:
+                        data[d]['balance'][id] = data[d]['balance'][id] + float(amount)
+                with open('database.dat', 'wb') as database:
+                    pickle.dump(data, database)
+                    database.close()
+                await message.channel.send("Successfully withdrew " + str(amount) + ' ' + id + ' from flexible staking term.')
+        except Exception as E:
+            await message.channel.send("Unresolved Error: " + str(E) + '\n' + 'Please check your input.')
     await message.add_reaction('<:CheckMark:830850554967097384>')
+
+
 
 client.run(os.getenv('DISCORD_TOKEN'))
