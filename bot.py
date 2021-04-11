@@ -204,8 +204,12 @@ async def on_message(message):
         data = get_data()
         token_id = message.content.split()[1]
         amount = float(message.content.split()[2])
+        if amount == 'all':
+            for d in range(0, len(data)):
+                if data[d]['id'] == message.author.id:
+                    amount = data[d]['balance'][token_id]
         if amount <= 0:
-            await message.channel.send("don't f*ck with me.")
+            await message.channel.send("don't mess with me.")
             return
         try:
             for d in range(0, len(data)):
@@ -303,7 +307,7 @@ async def on_message(message):
             for t in range(0, len(token_ids)):
                 token_id = str(token_ids[t])
                 for d in range(0, len(data)):
-                    data[d]['balance'][token_id] = 0
+                    data[d]['balance'][token_id] = 0.0
             with open('database.dat', 'wb') as database:
                 pickle.dump(data, database)
             for tok in range(0, len(token_ids)):
