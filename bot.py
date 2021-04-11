@@ -203,11 +203,13 @@ async def on_message(message):
     elif message.content.startswith('$sell '):
         data = get_data()
         token_id = message.content.split()[1]
-        amount = float(message.content.split()[2])
+        amount = message.content.split()[2]
         if amount == 'all':
             for d in range(0, len(data)):
                 if data[d]['id'] == message.author.id:
-                    amount = data[d]['balance'][token_id]
+                    amount = float(data[d]['balance'][token_id])
+        else:
+            amount = float(message.content.split()[2])
         if amount <= 0:
             await message.channel.send("don't mess with me.")
             return
