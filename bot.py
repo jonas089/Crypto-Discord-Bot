@@ -130,7 +130,7 @@ async def on_message(message):
         await message.channel.send('Please use $register first.')
 
     elif message.content.startswith('$help'):
-        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $price TOKEN | get price of a TOKEN.' + '\n' + '3. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '4. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '5. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '6. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether).' + '\n' + '7. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.')
+        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $print AMOUNT | add a specific AMOUNT of USDT (tether) to your balance, you can print negative values, but can not have less than 0 USDT. The %age gains take your printing in consideration so print as much as you want, it wont affect your performance and stats :).' + '\n' + '3. $price TOKEN | get price of a TOKEN.' + '\n' + '4. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '5. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '6. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '7. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether).' + '\n' + '8. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.')
 
     elif message.content.startswith('$hodling'):
         total_balance = 0.0
@@ -221,7 +221,7 @@ async def on_message(message):
         token_id = message.content.split()[1]
         amount = float(message.content.split()[2])
         if amount <= 0:
-            await message.channel.send("don't f*ck with me.")
+            await message.channel.send("don't try me.")
             return
         try:
             for d in range(0, len(data)):
@@ -279,4 +279,5 @@ async def on_message(message):
     elif message.content.startswith('$reset'):
         reset(message.author.id)
         await message.channel.send("All of your balances were reset to 0. Enjoy a fresh start :)")
+
 client.run(os.getenv('DISCORD_TOKEN'))
