@@ -130,10 +130,11 @@ async def on_message(message):
         await message.channel.send('Please use $register first.')
 
     elif message.content.startswith('$help'):
-        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $print AMOUNT | add a specific AMOUNT of USDT (tether) to your balance, you can print negative values, but can not have less than 0 USDT. The %age gains take your printing in consideration so print as much as you want, it wont affect your performance and stats :).' + '\n' + '3. $price TOKEN | get price of a TOKEN.' + '\n' + '4. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '5. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '6. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '7. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether). You can sell your entire hodling by simply using $sell TOKEN all' + '\n' + '8. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '9. $supported TOKEN | check weather a token is supported by the coingecko API V3 yet, if the TOKEN is unsupported, you sadly can not buy / sell it throught this bot.' + '\n' + '[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.' + '\n' + '2. $upgrade | automatically search for new tokens on coingecko and add them to the bot.')
+        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $print AMOUNT | add a specific AMOUNT of USDT (tether) to your balance, you can print negative values, but can not have less than 0 USDT. The %age gains take your printing in consideration so print as much as you want, it wont affect your performance and stats :).' + '\n' + '3. $price TOKEN | get price of a TOKEN.' + '\n' + '4. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '5. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '6. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '7. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether). You can sell your entire hodling by simply using $sell TOKEN all' + '\n' + '8. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '9. $supported TOKEN | check weather a token is supported by the coingecko API V3 yet, if the TOKEN is unsupported, you sadly can not buy / sell it throught this bot.' + '\n' + '10. $market TOKEN | get advanced market data of a token, including 24hour change, all time high, alltime low and many more.' + '\n' + '[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.' + '\n' + '2. $upgrade | automatically search for new tokens on coingecko and add them to the bot.')
 
     elif message.content.startswith('$hodling'):
         total_balance = 0.0
+        hodlstr = ''
         try:
             data = get_data()
             for d in range(0, len(data)):
@@ -144,8 +145,9 @@ async def on_message(message):
                                 price = get_price(key)
                             except Exception as Unlisted:
                                 price = 0
-                            await message.channel.send(key + ': ' + str(data[d]['balance'][key]) + ' | (' + cut(str(data[d]['balance'][key] * price)) + '$)')
+                            hodlstr += key + ': ' + str(data[d]['balance'][key]) + ' | (' + cut(str(data[d]['balance'][key] * price)) + '$)' + '\n'
                             total_balance += data[d]['balance'][key] * price
+            await message.channel.send(hodlstr)
             printed = get_printed(message.author.id)
             profit = total_balance - printed
 
@@ -294,10 +296,22 @@ async def on_message(message):
             return
         csbalance = page_content.xpath(cs_balance_xpath)[0]
         await message.channel.send('Your linked coinstats portfolio is worth: ' + str(csbalance))
+
     elif message.content.startswith('$reset'):
         reset(message.author.id)
         await message.channel.send("All of your balances were reset to 0. Enjoy a fresh start :)")
 
+    elif message.content.startswith('$market'):
+        try:
+            id = message.content.split()[1]
+            endpoint = '/coins/markets?vs_currency=usd&ids=' + id + '&order=market_cap_desc&per_page=100&page=1&sparkline=false'
+            r = requests.get(coingecko_base_url + endpoint)
+            res_json = json.loads(r.text)
+            result = res_json[0]
+            await message.channel.send('ID: ' + id + '\n' + '-'*50 + '\n' + 'rank: #' + str(result['market_cap_rank']) + '\n' + '24h high: ' + str(result['high_24h']) + '$' + '\n' + '24h low: ' + str(result['low_24h']) + '$' + '\n' + 'total supply: ' + str(result['total_supply']) + ' ' + id + '\n' + '24h change: ' + str(result['price_change_24h']) + '$' + '\n' + '24h change %age: ' + str(result['price_change_percentage_24h']) + '%' + '\n' + 'all time high: ' + str(result['ath']) + '\n' + 'ath date: ' + str(result['ath_date']) + '\n' + 'from ath: ' + str(result['ath_change_percentage']) + '%' + '\n' + 'all time low: ' + str(result['atl']) + '$' + '\n' + 'atl date: ' + str(result['atl_date']) + '\n' + 'from atl: ' + str(result['atl_change_percentage']) + '%' + '\n' 'price: ' + str(result['current_price']) + '$' + '\n' + '-'*50)
+        except Exception as E:
+            print(str(E))
+            await message.channel.send('Market data could not be resolved, is the token $supported ?')
     elif message.content.startswith('$upgrade') and str(message.author.id) == admin_id:
         try:
             data = get_data()
@@ -328,5 +342,6 @@ async def on_message(message):
             await message.channel.send(id + ' is supported.')
         else:
             await message.channel.send(id +  " is not supported yet. visit https://api.coingecko.com/api/v3/simple/price?ids=" + id + "&vs_currencies=usd" + '\n' + "if this request doesn't return '{}' in your browser, tell the admin to run $upgrade, because a value within the brackets would mean the coin got added to tha API and the database of the bot is outdated.")
+    await message.add_reaction('<:CheckMark:830850554967097384>')
 
 client.run(os.getenv('DISCORD_TOKEN'))
