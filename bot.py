@@ -130,7 +130,7 @@ async def on_message(message):
         await message.channel.send('Please use $register first.')
 
     elif message.content.startswith('$help'):
-        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $print AMOUNT | add a specific AMOUNT of USDT (tether) to your balance, you can print negative values, but can not have less than 0 USDT. The %age gains take your printing in consideration so print as much as you want, it wont affect your performance and stats :).' + '\n' + '3. $price TOKEN | get price of a TOKEN.' + '\n' + '4. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '5. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '6. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '7. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether).' + '\n' + '8. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.')
+        await message.channel.send('[BASIC]' + '\n' + '1. $register | to join this bot, required to execute any commands.' + '\n' + '2. $print AMOUNT | add a specific AMOUNT of USDT (tether) to your balance, you can print negative values, but can not have less than 0 USDT. The %age gains take your printing in consideration so print as much as you want, it wont affect your performance and stats :).' + '\n' + '3. $price TOKEN | get price of a TOKEN.' + '\n' + '4. $balance TOKEN | get balance of a specific TOKEN.' + '\n' + '5. $hodling | get all balances that are not 0 (your entire portfolio).' + '\n' + '6. $buy TOKEN AMOUNT | buy a specific TOKEN for a specifict AMOUNT of USDT (tether), check your tether balance using the command "$balance tether."'+ '\n' + '7. $sell TOKEN AMOUNT, sell a specific AMOUNT of a specific TOKEN at the current market price of the given token (you will receive USDT / tether).' + '\n' + '8. $reset | resets all balances and stats to 0, allowing for a fresh start.' + '\n' + '[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.' + '\n' + '2. $upgrade | automatically search for new tokens on coingecko and add them to the bot.')
 
     elif message.content.startswith('$hodling'):
         total_balance = 0.0
@@ -140,7 +140,10 @@ async def on_message(message):
                 if data[d]['id'] == message.author.id:
                     for key in data[d]['balance']:
                         if data[d]['balance'][key] > 0:
-                            price = get_price(key)
+                            try:
+                                price = get_price(key)
+                            except Exception as Unlisted:
+                                price = 0
                             await message.channel.send(key + ': ' + str(data[d]['balance'][key]) + ' | (' + cut(str(data[d]['balance'][key] * price)) + '$)')
                             total_balance += data[d]['balance'][key] * price
             printed = get_printed(message.author.id)
@@ -148,7 +151,7 @@ async def on_message(message):
 
             percentage_change = 100 * (total_balance - printed) / printed
             await message.channel.send('overall: ' + cut(str(total_balance)) + '$')
-            await message.channel.send('You printed: ' + str(printed) + ' USDT' + '\n' + 'PNL: ' + cutx(str(profit), 2) + '$' + '\n' + 'Percentage gains: ' + cutx(str(percentage_change), 3) + '%')
+            await message.channel.send('You printed: ' + str(printed) + ' USDT' + '\n' + 'PNL: ' + cutx(str(profit), 3) + '$' + '\n' + 'Percentage gains: ' + cutx(str(percentage_change), 3) + '%')
         except Exception as E:
             await message.channel.send('Unknown Error, this feature might be under maintanance. Or you just used $reset and your #Hodlings are 0.')
 
@@ -177,10 +180,14 @@ async def on_message(message):
             for d in range(0, len(data)):
                 if data[d]['id'] == message.author.id:
                     balance = data[d]['balance'][token_id]
-                    price = float(get_price(token_id))
+                    try:
+                        price = float(get_price(token_id))
+                    except Exception as Unlisted:
+                        price = 0
                     dollar_value = balance * price
-                    await message.channel.send("Balance of " + str(message.author) + '\n' + str(balance) + ' ' + token_id + ' | ' + '(' + cutx(str(dollar_value), 3) + '$' + ')' )
+                    await message.channel.send("Balance of " + str(message.author) + '\n' + str(balance) + ' ' + token_id + ' | ' + '(' + '~' + cut(str(dollar_value)) + '$' + ')' )
         except Exception as NoBalance:
+            print(str(NoBalance))
             await message.channel.send(E1)
             #await message.channel.send("Sorry, the token ID you entered is incorrect, or the token you specified is currently not supported by this bot, you can get it by reading the coingecko URL of you'r desired coin. To do so, visit coingecko.com and select you'r desired coin. Example: https://www.coingecko.com/de/munze/bitcoin ( token ID: 'bitcoin' ) List of supported Tokens: [USDT, SOON]")
 
@@ -258,7 +265,7 @@ async def on_message(message):
             for d in range(0, len(data)):
                 data[d][key] = default
             with open('database.dat', 'wb') as database:
-                pickle.dump(data)
+                pickle.dump(data, database)
             print('Added key: ' + str(key) + ' with default value: ' + str(default))
         except Exception as E:
             print(str(E))
@@ -279,5 +286,29 @@ async def on_message(message):
     elif message.content.startswith('$reset'):
         reset(message.author.id)
         await message.channel.send("All of your balances were reset to 0. Enjoy a fresh start :)")
+
+    elif message.content.startswith('$upgrade') and str(message.author.id) == admin_id:
+        try:
+            data = get_data()
+            current_ids = gecko_ids()
+            token_ids = []
+            for i in range(0, len(current_ids)):
+                if str(current_ids[i]) not in str(data):
+                    await message.channel.send("Found new token: " + str(current_ids[i]))
+                    token_ids.append(len(token_ids))
+                    token_ids[len(token_ids) - 1] = current_ids[i]
+            if len(token_ids) == 0:
+                await message.channel.send("Coingecko has not added any new tokens to it's API. The bot is up to date.")
+                return
+            for t in range(0, len(token_ids)):
+                token_id = str(token_ids[t])
+                for d in range(0, len(data)):
+                    data[d]['balance'][token_id] = 0
+            with open('database.dat', 'wb') as database:
+                pickle.dump(data, database)
+            for tok in range(0, len(token_ids)):
+                await message.channel.send("New Token added to bot: " + str(token_ids[tok]))
+        except Exception as E:
+            await message.channel.send("Error fetching new Token(s): " + str(E))
 
 client.run(os.getenv('DISCORD_TOKEN'))
