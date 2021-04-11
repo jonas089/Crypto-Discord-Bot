@@ -137,7 +137,7 @@ async def on_message(message):
 
         await message.channel.send('[ADVANCED]' + '\n' + '1. $connect COINSTATS_URL | allows you to connect your actual coinstats.app account (by setting up a direct link to your coinstats.app portfolio).' + '\n' + '2. $csbalance | returns the current balance of your linked coinstats.app portfolio (direct link), only works in case you have properly set up your portfolio using the $connect command.' + '\n' + '[ADMIN ONLY]' + '\n' + '1. $update KEY VALUE | adds a new key to the database and sets VALUE as default value for all users in the database. This command is admin-only, because the risk of loosing data is very high.' + '\n' + '2. $upgrade | automatically search for new tokens on coingecko and add them to the bot.')
 
-    elif message.content.startswith('$hodling'):
+    elif message.content.startswith('$hodling') or message.content.startswith('$holding'):
         total_balance = 0.0
         hodlstr = '-' * 100 + '\n' + 'DEMO PORTFOLIO OF ' + str(message.author) + '\n' + '-' * 100 + '\n'
         try:
@@ -495,6 +495,29 @@ async def on_message(message):
                 await message.channel.send("Successfully withdrew " + str(amount) + ' ' + id + ' from flexible staking term.')
         except Exception as E:
             await message.channel.send("Unresolved Error: " + str(E) + '\n' + 'Please check your input.')
+
+    elif message.content.startswith('$shodling') or message.content.startswith('$sholding'):
+        try:
+            with open('staking.dat', 'rb') as stakingbase:
+                data = pickle.load(stakingbase)
+            for d in range(0, len(data)):
+                if data[d]['id'] == message.author.id:
+                    balance = 'STAKED HODLINGS (FLEXIBLE)' + '\n'
+                    for key in data[d]['balance']:
+                        staking_balance = data[d]['balance'][key][0]
+                        if staking_balance != 0:
+                            if key in flexible_plans:
+                                annual = flexible_plans[key]
+                                psec = annual / 365 / 24 / 60 / 60
+                                staking_balance += staking_balance * psec * (int(time.time())-data[d]['balance'][key][1])
+                            else:
+                                annual = 0
+                            balance += key + ': ' + str(staking_balance) + ' (' + str(annual * 100) + '% p.a.)' + '\n' + ' ' + '\n'
+                            print(balance)
+                    await message.channel.send(balance)
+        except Exception as E:
+                    await message.channel.send('Looks like you have no coins locked into staking. If this is a mistake, please contact the developer.')
+
     await message.add_reaction('<:CheckMark:830850554967097384>')
 
 
