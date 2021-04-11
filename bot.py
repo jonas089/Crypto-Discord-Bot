@@ -153,10 +153,27 @@ async def on_message(message):
                             hodlstr += key + ': ' + str(data[d]['balance'][key]) + ' | (' + cut(str(data[d]['balance'][key] * price)) + '$)' + '\n' + ' ' + '\n'
                             total_balance += data[d]['balance'][key] * price
             printed = get_printed(message.author.id)
-            profit = total_balance - printed
+            try:
+                staking_balance = 0
+                with open('staking.dat', 'rb') as stakingbase:
+                    stakingdata = pickle.load(stakingbase)
 
+                for s in range(0, len(stakingdata)):
+                    if stakingdata[s]['id'] == message.author.id:
+                        for key in stakingdata[s]['balance']:
+                            if stakingdata[s]['balance'][key][0] != 0:
+                                price = get_price(key)
+                                staking_balance += stakingdata[s]['balance'][key][0] * price
+                                if key in flexible_plans:
+                                    interest = stakingdata[s]['balance'][key][0] * (flexible_plans[key]/365/24/60/60 * (time.time()-stakingdata[s]['balance'][key][1]))
+                                staking_balance += interest * price
+            except Exception as E:
+                print(str(E))
+                staking_balance = 0.00
+            total_balance += staking_balance
+            profit = total_balance - printed
             percentage_change = 100 * (total_balance - printed) / printed
-            hodlstr += 'TOTAL (USDT): ' + cut(str(total_balance)) + '$' + '\n'
+            hodlstr += 'TOTAL (USDT): ' + cut(str(total_balance)) + '$' + '\n' + 'STAKING (USDT): ' + cut(str(staking_balance)) + '$' + '\n'
             hodlstr += 'You printed: ' + str(printed) + ' USDT' + '\n' + 'PNL: ' + cutx(str(profit), 3) + '$' + '\n' + 'Percentage gains: ' + cutx(str(percentage_change), 3) + '%'
             hodlstr += '\n' + '-' * 100 + '\n'
             await message.channel.send(hodlstr)
